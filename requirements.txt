@@ -1,0 +1,33 @@
+# Core audio processing
+numpy>=1.21.0
+sounddevice>=0.4.4
+
+# OBS WebSocket integration
+obsws-python>=1.0.0
+
+# AI/ML dependencies for solostage_switcher_ai.py
+# TensorFlow Lite runtime (choose one based on your Python version)
+# For Python 3.12+:
+ai-edge-litert>=0.1.0
+# For Python 3.11:
+# tflite-runtime==2.14.0
+
+# Environment management
+python-dotenv>=0.19.0
+
+# Optional: for better audio processing
+scipy>=1.7.0
+librosa>=0.9.0
+
+# Development/testing
+pytest>=6.0.0
+
+# Instagram live stream automation
+selenium>=4.0.0
+
+# Web interface for streaming configuration
+flask>=2.0.0
+
+# Computer vision for hand gesture detection
+opencv-python>=4.8.0
+mediapipe>=0.10.0

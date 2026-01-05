@@ -2,7 +2,7 @@
 """
 Local Hand Gesture Detection Test Script
 Uses MediaPipe Hands to detect hand landmarks and gestures on Camera 1
-Prints landmarks and detected gestures (OK, Peace, Stop, Fist)
+Prints landmarks and detected gestures (Thumbs Up, Stop, 1, 2, 3)
 
 This is a LOCAL TEST ONLY - not integrated with OBS yet
 """
@@ -116,6 +116,7 @@ class HandGestureDetector:
         
         Returns:
             String name of detected gesture or None
+        Supported gestures: THUMBS_UP, STOP, 1, 2, 3
         """
         if not landmarks:
             return None
@@ -134,29 +135,88 @@ class HandGestureDetector:
         RING_PIP = 14
         PINKY_PIP = 18
         
-        # Check finger states
-        thumb_extended = landmarks[THUMB_TIP].x > landmarks[THUMB_IP].x
-        index_extended = landmarks[INDEX_TIP].y < landmarks[INDEX_PIP].y
-        middle_extended = landmarks[MIDDLE_TIP].y < landmarks[MIDDLE_PIP].y
-        ring_extended = landmarks[RING_TIP].y < landmarks[RING_PIP].y
-        pinky_extended = landmarks[PINKY_TIP].y < landmarks[PINKY_PIP].y
+        # More lenient thresholds for better detection
+        FINGER_EXTENDED_THRESHOLD = 0.05  # Finger tip must be above PIP
         
-        # OK gesture: Thumb and index finger form a circle, others closed
-        thumb_index_distance = self.calculate_distance(landmarks[THUMB_TIP], landmarks[INDEX_TIP])
-        if thumb_index_distance < 0.05 and not middle_extended and not ring_extended and not pinky_extended:
-            return "OK"
+        # Check if fingers are extended (tip is above PIP joint)
+        index_extended = landmarks[INDEX_TIP].y < landmarks[INDEX_PIP].y - FINGER_EXTENDED_THRESHOLD
+        middle_extended = landmarks[MIDDLE_TIP].y < landmarks[MIDDLE_PIP].y - FINGER_EXTENDED_THRESHOLD
+        ring_extended = landmarks[RING_TIP].y < landmarks[RING_PIP].y - FINGER_EXTENDED_THRESHOLD
+        pinky_extended = landmarks[PINKY_TIP].y < landmarks[PINKY_PIP].y - FINGER_EXTENDED_THRESHOLD
         
-        # Peace gesture: Index and middle extended, others closed
-        if index_extended and middle_extended and not thumb_extended and not ring_extended and not pinky_extended:
-            return "PEACE"
+        # Check if fingers are closed (tip is below PIP joint)
+        index_closed = landmarks[INDEX_TIP].y > landmarks[INDEX_PIP].y + 0.03
+        middle_closed = landmarks[MIDDLE_TIP].y > landmarks[MIDDLE_PIP].y + 0.03
+        ring_closed = landmarks[RING_TIP].y > landmarks[RING_PIP].y + 0.03
+        pinky_closed = landmarks[PINKY_TIP].y > landmarks[PINKY_PIP].y + 0.03
         
-        # Stop gesture: All fingers extended, palm facing camera
+        # Thumb landmark indices
+        WRIST = 0
+        THUMB_CMC = 1
+        THUMB_MCP = 2
+        
+        # More lenient thumbs up detection using scoring system
+        # Instead of strict boolean checks, use a scoring approach that's more forgiving
+        
+        # Calculate thumb vertical position relative to key points
+        thumb_above_ip = landmarks[THUMB_IP].y - landmarks[THUMB_TIP].y  # Positive if thumb is above IP
+        thumb_above_mcp = landmarks[THUMB_MCP].y - landmarks[THUMB_TIP].y  # Positive if thumb is above MCP
+        thumb_above_wrist = landmarks[WRIST].y - landmarks[THUMB_TIP].y  # Positive if thumb is above wrist
+        
+        # Score based on how much thumb is extended upward (more lenient thresholds)
+        thumb_up_score = 0
+        if thumb_above_ip > 0.02:  # Very lenient - just needs to be slightly above IP
+            thumb_up_score += 1
+        if thumb_above_mcp > 0.01:  # Very lenient - just needs to be slightly above MCP
+            thumb_up_score += 1
+        if thumb_above_wrist > -0.02:  # Very lenient - can be at or slightly above wrist
+            thumb_up_score += 1
+        
+        # Check if thumb is not too far sideways (allow more variation)
+        thumb_x_diff = abs(landmarks[THUMB_TIP].x - landmarks[THUMB_IP].x)
+        if thumb_x_diff < 0.15:  # Allow more sideways movement
+            thumb_up_score += 1
+        
+        # Thumb is up if it scores at least 2 out of 4 (more forgiving)
+        thumb_up = thumb_up_score >= 2
+        
+        # Detection order matters! Check most specific gestures first
+        
+        # STOP gesture: All four fingers (index, middle, ring, pinky) clearly extended
+        # Check first as it's the most specific
         if index_extended and middle_extended and ring_extended and pinky_extended:
             return "STOP"
         
-        # Fist: All fingers closed
-        if not index_extended and not middle_extended and not ring_extended and not pinky_extended:
-            return "FIST"
+        # Gesture "3": Index, middle, and ring extended, pinky closed
+        if index_extended and middle_extended and ring_extended and pinky_closed:
+            return "3"
+        
+        # Gesture "2" (Peace): Index and middle extended, others closed
+        if index_extended and middle_extended and ring_closed and pinky_closed:
+            return "2"
+        
+        # Gesture "1": Only index extended, others closed
+        if index_extended and middle_closed and ring_closed and pinky_closed:
+            return "1"
+        
+        # THUMBS_UP: Thumb extended upward, all other fingers closed
+        # Check LAST to avoid conflicts with numbered gestures
+        # Use more lenient checks - fingers just need to not be extended
+        # Count how many fingers are closed (more forgiving)
+        closed_finger_count = 0
+        if not index_extended or index_closed:
+            closed_finger_count += 1
+        if not middle_extended or middle_closed:
+            closed_finger_count += 1
+        if not ring_extended or ring_closed:
+            closed_finger_count += 1
+        if not pinky_extended or pinky_closed:
+            closed_finger_count += 1
+        
+        # Thumbs up if thumb is up and at least 3 out of 4 fingers are closed (very lenient)
+        # BUT also ensure no fingers are extended (to avoid conflict with 1, 2, 3)
+        if thumb_up and closed_finger_count >= 3 and not index_extended:
+            return "THUMBS_UP"
         
         return None
     
@@ -186,7 +246,7 @@ class HandGestureDetector:
         """Main loop: capture from camera and detect hand gestures"""
         print(f"Starting hand gesture detection on {self.camera_device}")
         print("Press 'q' to quit")
-        print("Gestures to test: OK, Peace, Stop, Fist\n")
+        print("Gestures to test: Thumbs Up, Stop, 1, 2, 3\n")
         
         # Try to open camera device
         # Cross-platform support: try device path, then try as index, then try default (0)

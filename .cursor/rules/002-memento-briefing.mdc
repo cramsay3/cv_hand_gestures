@@ -1,0 +1,74 @@
+---
+description: Critical rules and guidelines for SoloStage AI project to prevent catastrophic functionality removal
+globs: []
+version: 1.0.0
+---
+
+# Memento Briefing - Critical Rules
+
+## Context
+**CRITICAL**: These rules prevent catastrophic functionality removal and ensure system consistency across AI assistant interactions.
+
+## Mandatory Rules
+
+### 1. Permission Protocol
+- **ASK FIRST, ACT SECOND** - Get explicit permission before modifying ANY file, service, or configuration
+- **NEVER make changes** to ANY file without explicit user permission
+- **REPORT errors** but DO NOT fix them unless specifically asked
+- **Stay within EXACT scope** of user requests - complete requested task and STOP
+
+### 2. Project Protection
+- **NEVER remove functionality** from `deploy_solostage.sh` - it has 11+ sections of critical deployment logic
+- **NEVER change SoloStage AI architecture** without explicit permission
+- **Architecture**: OBS runs as desktop app (autostart), SoloStage service runs YAMNet AI system (solostage_ai.py)
+
+### 3. System Integrity
+- **NEVER use `pkill obs`** or force-kill OBS - use graceful shutdown to prevent safe mode
+- **NEVER allow multiple instances** of `solostage_ai.py` to run simultaneously
+- **Always check system state** before making changes using `/system_status` command
+
+### 4. Testing Protocol
+- **NEVER make user test system live** by walking to another room
+- **ALWAYS use recorded WAV files** for testing with TALKING, SINGING, SINGING WITH GUITAR, and SILENCE sections
+- **Monitor logs and system output remotely** - everything must be verifiable from terminal/command line
+
+### 5. YAMNet Primary System
+- **YAMNet AI is the PRIMARY system** (not VAD) - TensorFlow Lite for intelligent audio classification
+- **VAD has been removed** - YAMNet is the only audio classification system
+- **Thresholds**: speech: 0.0080, music: 0.0195, singing: 0.0097
+
+### 6. Audio Conflict Solution
+- **OBS outputs to OBS-YAMNet-Sink** virtual device
+- **YAMNet reads from monitor source** to prevent audio device conflicts
+- **Built-in mic reserved for YAMNet**, audio interface reserved for separate recording
+
+### 7. Critical Architecture Rules
+- **OBS runs as desktop app** (autostart), SoloStage service runs YAMNet AI system
+- **NO Xvfb, NO OBS in service** - clean separation of concerns
+- **NEVER change this architecture** without explicit permission
+
+### 8. Script Creation Rules
+- **ALWAYS CHECK FIRST** - Search existing scripts before creating new ones
+- **NEVER create duplicate scripts** - Consolidate functionality into existing tools
+- **Ask permission** before creating multiple scripts for similar purposes
+- **Maximum 1 script per functionality** - No duplicate monitoring, checking, or troubleshooting scripts
+
+### 9. Communication Rules
+- **No pandering language** - Never use "perfect", "awesome", "excellent", "fantastic", "amazing", "incredible"
+- **Be direct and factual** - State accomplishments without unnecessary praise
+- **Professional tone** - Use technical, matter-of-fact language
+
+## Enforcement
+- **This rule is non-negotiable**
+- **Violation can result in system breakage**
+- **Always reference the briefing when making decisions**
+- **When in doubt, read the briefing again**
+
+## Application Process
+1. **Read** the Memento Briefing section in README.md
+2. **Understand** the project core, technical details, and critical rules
+3. **Apply** the context to your current task
+4. **Follow** the constraints and requirements
+5. **Update** the briefing if making significant changes
+
+**Remember**: This project is close to working - focus on debugging and fixing, not rewriting or removing functionality.

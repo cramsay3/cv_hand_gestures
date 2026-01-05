@@ -1,0 +1,419 @@
+---
+description: Deployment procedures and environment management for SoloStage AI
+globs: ["scripts/**/*.sh", "scripts/**/*.py"]
+version: 1.0.0
+---
+
+# Deployment Procedures
+
+## Context
+SoloStage AI deployment follows a structured process to ensure consistent, reliable system setup across different platforms and environments.
+
+## Deployment Architecture
+
+### 1. Platform Support
+- **x86_64**: Desktop and server systems
+- **ARM64**: ARM-based systems
+- **Raspberry Pi**: Raspberry Pi 4/5 with optimized settings
+
+### 2. Deployment Modes
+- **Local Mode**: Default mode, runs on local machine (no SSH overhead)
+- **Remote Mode**: Deploy to remote machines via SSH
+- **Test Mode**: Validation mode for testing deployment scripts
+
+## Main Deployment Script
+
+### Primary Command
+```bash
+./scripts/deploy_solostage.sh [platform] [options]
+```
+
+### Platform Options
+```bash
+# x86_64 systems (desktop/server)
+./scripts/deploy_solostage.sh x86
+
+# ARM64 systems
+./scripts/deploy_solostage.sh arm
+
+# Raspberry Pi systems
+./scripts/deploy_solostage.sh pi
+```
+
+### Deployment Options
+```bash
+# Local deployment (default)
+./scripts/deploy_solostage.sh x86
+
+# Remote deployment
+./scripts/deploy_solostage.sh x86 --remote solostage.lan
+./scripts/deploy_solostage.sh pi --remote raspberrypi5.lan
+
+# Test mode (validation only)
+./scripts/deploy_solostage.sh x86 --test-mode
+
+# Verbose output
+./scripts/deploy_solostage.sh x86 --verbose
+
+# Force reinstall
+./scripts/deploy_solostage.sh x86 --force
+```
+
+## Deployment Process
+
+### 1. Pre-Deployment Checks
+```bash
+# Check system requirements
+./scripts/test_system_requirements.py
+
+# Verify platform compatibility
+uname -m
+lsb_release -a
+
+# Check available resources
+free -h
+df -h
+```
+
+### 2. System Dependencies Installation
+```bash
+# Update package lists
+sudo apt update
+
+# Install core dependencies
+sudo apt install -y python3 python3-pip python3-venv
+sudo apt install -y obs-studio
+sudo apt install -y v4l-utils
+sudo apt install -y pulseaudio pulseaudio-utils
+sudo apt install -y x11vnc
+sudo apt install -y systemd
+```
+
+### 3. OBS Studio Configuration
+```bash
+# Install OBS Studio with WebSocket support
+sudo apt install -y obs-studio
+
+# Configure OBS profile
+mkdir -p ~/.config/obs-studio/basic/profiles/SoloStage
+cp config/obs_profile.ini ~/.config/obs-studio/basic/profiles/SoloStage/basic.ini
+
+# Configure OBS scene collection
+mkdir -p ~/.config/obs-studio/basic/scene_collections
+cp config/obs_scenes.json ~/.config/obs-studio/basic/scene_collections/SoloStage.json
+```
+
+### 4. Camera System Setup
+```bash
+# Create udev rules for ELP cameras
+sudo cp config/99-elp-cameras.rules /etc/udev/rules.d/
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+
+# Verify camera detection
+ls -la /dev/elp_*
+
+# Configure camera settings
+./scripts/camera-tune/install_camera_tune.sh
+```
+
+### 5. Audio System Configuration
+```bash
+# Configure PulseAudio
+pactl load-module module-null-sink sink_name=obs_yamnet_sink sink_properties=device.description="OBS-YAMNet-Sink"
+pactl load-module module-loopback source=@DEFAULT_MONITOR@ sink=obs_yamnet_sink
+
+# Verify audio setup
+pactl list sinks | grep obs_yamnet_sink
+```
+
+### 6. Python Environment Setup
+```bash
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install Python dependencies
+pip install -r requirements.txt
+
+# Install YAMNet model
+python3 -c "
+import tensorflow as tf
+import tensorflow_hub as hub
+model = hub.load('https://tfhub.dev/google/yamnet/1')
+"
+```
+
+### 7. Systemd Service Configuration
+```bash
+# Create systemd user service
+mkdir -p ~/.config/systemd/user
+cp config/solostage-ai.service ~/.config/systemd/user/
+
+# Enable service
+systemctl --user daemon-reload
+systemctl --user enable solostage-ai.service
+```
+
+### 8. Auto-Login Configuration
+```bash
+# Configure automatic login
+sudo systemctl enable gdm3
+sudo systemctl set-default graphical.target
+
+# Configure desktop autostart
+mkdir -p ~/.config/autostart
+cp config/obs-autostart.desktop ~/.config/autostart/
+```
+
+## Environment Configuration
+
+### 1. Environment Variables
+```bash
+# Create .env file from template
+cp .env.template .env
+
+# Platform-specific configuration
+if [[ "$PLATFORM" == "pi" ]]; then
+    sed -i 's/CAPTURE_SAMPLE_RATE=44100/CAPTURE_SAMPLE_RATE=16000/' .env
+    sed -i 's/YAMNET_SPEECH_THRESHOLD=0.0080/YAMNET_SPEECH_THRESHOLD=0.0100/' .env
+fi
+```
+
+### 2. Configuration Files
+```bash
+# OBS configuration
+cp config/obs_config.json ~/.config/obs-studio/
+
+# YAMNet configuration
+cp config/yamnet_config.yaml ~/.config/solostage-ai/
+
+# Camera configuration
+cp config/camera_devices.conf ~/.config/solostage-ai/
+```
+
+## Post-Deployment Validation
+
+### 1. System Health Check
+```bash
+# Run comprehensive system test
+./scripts/test_environment.sh --verbose
+
+# Check service status
+systemctl --user status solostage-ai.service
+
+# Verify OBS integration
+python3 -c "
+import obsws_python as obs
+client = obs.ReqClient(host='127.0.0.1', port=4455, password='password')
+scenes = client.get_scene_list()
+print(f'Scenes: {[s[\"sceneName\"] for s in scenes.scenes]}')
+"
+```
+
+### 2. Camera System Validation
+```bash
+# Check camera detection
+ls -la /dev/elp_*
+
+# Verify camera settings
+v4l2-ctl --device=/dev/elp_1 --get-parm
+v4l2-ctl --device=/dev/elp_2 --get-parm
+v4l2-ctl --device=/dev/elp_3 --get-parm
+
+# Test camera cycling
+python3 -c "
+import obsws_python as obs
+client = obs.ReqClient(host='127.0.0.1', port=4455, password='password')
+client.set_current_scene('SOUNDCHECK')
+"
+```
+
+### 3. Audio System Validation
+```bash
+# Check PulseAudio setup
+pactl list sinks | grep obs_yamnet_sink
+pactl list sources | grep obs_yamnet_sink.monitor
+
+# Test audio classification
+python3 test_yamnet_scores.py
+
+# Verify YAMNet thresholds
+grep -E "YAMNET_.*_THRESHOLD" .env
+```
+
+### 4. VNC Desktop Validation
+```bash
+# Check VNC server
+ps aux | grep x11vnc
+netstat -tlnp | grep 5901
+
+# Test VNC connection
+vncviewer 127.0.0.1:5901
+
+# Verify desktop environment
+ps aux | grep -E "(lxpanel|openbox)"
+```
+
+## Platform-Specific Configurations
+
+### 1. x86_64 Configuration
+```bash
+# High-performance settings
+export CAPTURE_SAMPLE_RATE=44100
+export YAMNET_SPEECH_THRESHOLD=0.0080
+export YAMNET_MUSIC_THRESHOLD=0.0195
+export YAMNET_SINGING_THRESHOLD=0.0097
+
+# Camera settings
+export CAMERA_RESOLUTION=1920x1080
+export CAMERA_FPS=30
+export CAMERA_FORMAT=MJPG
+```
+
+### 2. ARM64 Configuration
+```bash
+# Optimized for ARM
+export CAPTURE_SAMPLE_RATE=16000
+export YAMNET_SPEECH_THRESHOLD=0.0100
+export YAMNET_MUSIC_THRESHOLD=0.0200
+export YAMNET_SINGING_THRESHOLD=0.0100
+
+# Camera settings
+export CAMERA_RESOLUTION=1280x720
+export CAMERA_FPS=30
+export CAMERA_FORMAT=H264
+```
+
+### 3. Raspberry Pi Configuration
+```bash
+# Pi-optimized settings
+export CAPTURE_SAMPLE_RATE=16000
+export YAMNET_SPEECH_THRESHOLD=0.0120
+export YAMNET_MUSIC_THRESHOLD=0.0220
+export YAMNET_SINGING_THRESHOLD=0.0120
+
+# Camera settings
+export CAMERA_RESOLUTION=1280x720
+export CAMERA_FPS=15
+export CAMERA_FORMAT=H264
+
+# Performance optimizations
+echo 'gpu_mem=128' | sudo tee -a /boot/config.txt
+echo 'dtparam=audio=on' | sudo tee -a /boot/config.txt
+```
+
+## Deployment Troubleshooting
+
+### 1. Common Deployment Issues
+```bash
+# OBS installation issues
+sudo apt update
+sudo apt install -y obs-studio
+sudo apt install -y obs-studio-plugins
+
+# Camera detection issues
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+ls -la /dev/video*
+
+# Audio system issues
+pulseaudio --kill
+pulseaudio --start
+pactl list sinks
+```
+
+### 2. Service Startup Issues
+```bash
+# Systemd service issues
+systemctl --user daemon-reload
+systemctl --user restart solostage-ai.service
+journalctl --user -u solostage-ai.service -f
+
+# Environment loading issues
+systemctl --user show solostage-ai.service | grep Environment
+```
+
+### 3. Network Configuration Issues
+```bash
+# WebSocket connection issues
+ss -tlnp | grep 4455
+netstat -tlnp | grep 4455
+
+# VNC connection issues
+ps aux | grep x11vnc
+netstat -tlnp | grep 5901
+```
+
+## Rollback Procedures
+
+### 1. Service Rollback
+```bash
+# Stop services
+systemctl --user stop solostage-ai.service
+pkill -f obs
+pkill -f x11vnc
+
+# Restore configuration
+cp .env.backup .env
+cp ~/.config/obs-studio/basic/profiles/SoloStage/basic.ini.backup ~/.config/obs-studio/basic/profiles/SoloStage/basic.ini
+
+# Restart services
+systemctl --user start solostage-ai.service
+```
+
+### 2. System Rollback
+```bash
+# Restore system configuration
+sudo cp /etc/udev/rules.d/99-elp-cameras.rules.backup /etc/udev/rules.d/99-elp-cameras.rules
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+
+# Restore PulseAudio configuration
+pactl unload-module module-null-sink
+pactl unload-module module-loopback
+```
+
+## Deployment Automation
+
+### 1. CI/CD Integration
+```yaml
+# GitHub Actions example
+name: Deploy SoloStage AI
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Deploy to x86
+        run: ./scripts/deploy_solostage.sh x86 --test-mode
+      - name: Run tests
+        run: ./scripts/test_environment.sh
+```
+
+### 2. Ansible Playbook
+```yaml
+# ansible-playbook.yml
+- hosts: solostage_servers
+  become: yes
+  tasks:
+    - name: Deploy SoloStage AI
+      script: scripts/deploy_solostage.sh
+      args:
+        chdir: /home/ubuntu/projects/solostage-ai
+```
+
+### 3. Docker Deployment
+```dockerfile
+# Dockerfile
+FROM ubuntu:22.04
+RUN apt update && apt install -y python3 python3-pip
+COPY . /app
+WORKDIR /app
+RUN pip install -r requirements.txt
+CMD ["./scripts/deploy_solostage.sh", "x86"]
+```

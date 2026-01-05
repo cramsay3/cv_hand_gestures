@@ -1,0 +1,329 @@
+---
+description: System health checks and validation procedures for SoloStage AI
+globs: []
+version: 1.0.0
+---
+
+# System Checks & Validation
+
+## Context
+Regular system health checks ensure SoloStage AI operates optimally and prevent issues before they impact performance.
+
+## Automated System Checks
+
+### 1. Environment Test Script
+**Primary Command**: `./scripts/test_environment.sh`
+
+**Options**:
+```bash
+# Basic test - checks all components
+./scripts/test_environment.sh
+
+# Verbose output with detailed information
+./scripts/test_environment.sh --verbose
+
+# Auto-fix issues where possible
+./scripts/test_environment.sh --fix-issues
+
+# Both verbose and auto-fix
+./scripts/test_environment.sh --verbose --fix-issues
+```
+
+**What it tests**:
+- System dependencies (Python, OBS, audio tools)
+- Python environment (all required packages)
+- Audio system (device detection, configuration)
+- OBS Studio (installation, WebSocket, scene switching)
+- Camera system (device detection, tuning configuration)
+- Lua scripts (automatic deployment and WebSocket loading)
+- Systemd service (service configuration and status)
+- Auto-login (headless operation configuration)
+- Performance settings (CPU governor, audio latency)
+- Project files (all required files and configuration)
+- Environment variables (.env file configuration)
+- Network connectivity (OBS WebSocket port)
+- Recording readiness (final assessment)
+
+### 2. Interactive System Test
+**Command**: `python3 test_solostage.py`
+
+**Features**:
+- Audio device testing and validation
+- Camera detection and naming verification
+- OBS status check and startup if needed
+- Camera cycling through all scenes
+- YAMNet testing with interactive speech/singing classification
+- Real-time console with live audio classification output
+
+## Manual System Checks
+
+### 1. Service Status Check
+```bash
+# Check SoloStage AI service
+systemctl --user status solostage-ai.service
+
+# Check OBS process
+ps aux | grep obs
+
+# Check YAMNet process
+pgrep -f "solostage_ai.py"
+
+# Check VNC server
+ps aux | grep x11vnc
+```
+
+### 2. Camera System Check
+```bash
+# List all video devices
+ls -la /dev/video*
+
+# Check ELP camera symlinks
+ls -la /dev/elp_*
+
+# Verify camera settings
+v4l2-ctl --device=/dev/elp_1 --get-parm
+v4l2-ctl --device=/dev/elp_2 --get-parm
+v4l2-ctl --device=/dev/elp_3 --get-parm
+
+# Check camera frame rates
+v4l2-ctl --device=/dev/elp_1 --get-parm | grep "Frames per second"
+v4l2-ctl --device=/dev/elp_2 --get-parm | grep "Frames per second"
+v4l2-ctl --device=/dev/elp_3 --get-parm | grep "Frames per second"
+```
+
+### 3. Audio System Check
+```bash
+# List audio devices
+python3 -c "import sounddevice as sd; print(sd.query_devices())"
+
+# Check PulseAudio sinks
+pactl list sinks
+
+# Check PulseAudio sources
+pactl list sources
+
+# Verify OBS-YAMNet-Sink
+pactl list sinks | grep -A 10 "obs_yamnet_sink"
+
+# Check audio device indices
+grep -E "AUDIO_DEVICE_INDEX|CAPTURE_SAMPLE_RATE" .env
+```
+
+### 4. OBS Integration Check
+```bash
+# Check WebSocket port
+ss -tlnp | grep 4455
+
+# Test WebSocket connection
+python3 -c "
+import obsws_python as obs
+try:
+    client = obs.ReqClient(host='127.0.0.1', port=4455, password='password')
+    scenes = client.get_scene_list()
+    print('OBS WebSocket: OK')
+    print(f'Scenes: {[s[\"sceneName\"] for s in scenes.scenes]}')
+except Exception as e:
+    print(f'OBS WebSocket: FAILED - {e}')
+"
+
+# Check OBS scenes
+python3 -c "
+import obsws_python as obs
+client = obs.ReqClient(host='127.0.0.1', port=4455, password='password')
+scenes = client.get_scene_list()
+for scene in scenes.scenes:
+    print(f'Scene: {scene[\"sceneName\"]}')
+    sources = client.get_scene_item_list(scene['sceneName'])
+    for source in sources.scene_items:
+        print(f'  Source: {source[\"sourceName\"]}')
+"
+```
+
+### 5. YAMNet AI System Check
+```bash
+# Check YAMNet status
+./toggle_yamnet.sh status
+
+# Verify YAMNet thresholds
+grep -E "YAMNET_.*_THRESHOLD" .env
+
+# Test YAMNet classification
+python3 test_yamnet_scores.py
+
+# Check YAMNet logs
+tail -20 solostage_ai.log | grep -i "yamnet"
+```
+
+### 6. VNC Desktop Check
+```bash
+# Check VNC server
+ps aux | grep x11vnc
+netstat -tlnp | grep 5901
+
+# Check desktop environment
+ps aux | grep -E "(lxpanel|openbox)"
+
+# Check VNC logs
+tail -20 /tmp/x11vnc.log
+```
+
+## Performance Monitoring
+
+### 1. Resource Usage Check
+```bash
+# CPU usage
+top -bn1 | grep -E "(obs|solostage|yamnet)"
+
+# Memory usage
+free -h
+ps aux --sort=-%mem | head -10
+
+# Disk usage
+df -h
+du -sh /home/ubuntu/projects/solostage-ai
+```
+
+### 2. Audio Latency Check
+```bash
+# Check audio device latency
+python3 -c "
+import sounddevice as sd
+import time
+start = time.time()
+data = sd.rec(1024, samplerate=44100, channels=1, dtype='float32')
+sd.wait()
+latency = time.time() - start
+print(f'Audio latency: {latency*1000:.1f}ms')
+"
+```
+
+### 3. Network Connectivity Check
+```bash
+# Check local network
+ping -c 3 127.0.0.1
+
+# Check WebSocket port
+telnet 127.0.0.1 4455
+
+# Check VNC port
+telnet 127.0.0.1 5901
+```
+
+## Health Check Schedule
+
+### Daily Checks
+- Service status verification
+- Camera functionality test
+- Audio system validation
+- OBS WebSocket connectivity
+
+### Weekly Checks
+- Complete environment test
+- Performance monitoring
+- Log analysis for errors
+- System resource usage
+
+### Monthly Checks
+- Full system validation
+- Camera troubleshooting if needed
+- Audio system optimization
+- Performance tuning
+
+## Automated Health Monitoring
+
+### 1. System Health Script
+```bash
+#!/bin/bash
+# Create system health monitoring script
+cat > check_system_health.sh << 'EOF'
+#!/bin/bash
+echo "=== SoloStage AI System Health Check ==="
+echo "Date: $(date)"
+echo
+
+# Service status
+echo "=== Service Status ==="
+systemctl --user is-active solostage-ai.service
+systemctl --user is-active obs.service 2>/dev/null || echo "OBS: Not a service (desktop app)"
+
+# Process status
+echo -e "\n=== Process Status ==="
+pgrep -f "solostage_ai.py" && echo "YAMNet AI: Running" || echo "YAMNet AI: Not running"
+pgrep -f "obs" && echo "OBS: Running" || echo "OBS: Not running"
+pgrep -f "x11vnc" && echo "VNC: Running" || echo "VNC: Not running"
+
+# Camera status
+echo -e "\n=== Camera Status ==="
+ls -la /dev/elp_* 2>/dev/null | wc -l | xargs -I {} echo "ELP Cameras: {} detected"
+
+# Audio status
+echo -e "\n=== Audio Status ==="
+pactl list sinks | grep -q "obs_yamnet_sink" && echo "OBS-YAMNet-Sink: OK" || echo "OBS-YAMNet-Sink: Missing"
+
+# WebSocket status
+echo -e "\n=== WebSocket Status ==="
+ss -tlnp | grep -q ":4455" && echo "OBS WebSocket: Listening" || echo "OBS WebSocket: Not listening"
+
+echo -e "\n=== Health Check Complete ==="
+EOF
+
+chmod +x check_system_health.sh
+```
+
+### 2. Log Monitoring
+```bash
+# Monitor critical logs
+tail -f solostage_ai.log | grep -E "(ERROR|WARNING|CRITICAL)"
+
+# Monitor systemd service logs
+journalctl --user -u solostage-ai.service -f
+
+# Monitor OBS logs
+tail -f ~/.config/obs-studio/logs/*.log
+```
+
+## Validation Procedures
+
+### 1. Pre-Deployment Validation
+```bash
+# Run complete environment test
+./scripts/test_environment.sh --verbose --fix-issues
+
+# Verify all components
+./check_system_health.sh
+
+# Test YAMNet classification
+python3 test_yamnet_scores.py
+```
+
+### 2. Post-Update Validation
+```bash
+# Restart services
+systemctl --user restart solostage-ai.service
+
+# Verify functionality
+./scripts/test_environment.sh
+
+# Check for errors
+journalctl --user -u solostage-ai.service --since "5 minutes ago"
+```
+
+### 3. Performance Validation
+```bash
+# Monitor resource usage
+top -bn1 | grep -E "(obs|solostage|yamnet)"
+
+# Check audio latency
+python3 -c "
+import sounddevice as sd
+import time
+start = time.time()
+data = sd.rec(1024, samplerate=44100, channels=1, dtype='float32')
+sd.wait()
+latency = time.time() - start
+print(f'Audio latency: {latency*1000:.1f}ms')
+"
+
+# Verify camera frame rates
+v4l2-ctl --device=/dev/elp_1 --get-parm | grep "Frames per second"
+```

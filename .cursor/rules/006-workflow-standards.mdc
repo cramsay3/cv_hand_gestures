@@ -1,0 +1,443 @@
+---
+description: Workflow standards, coding conventions, and best practices for SoloStage AI development
+globs: ["**/*.py", "**/*.sh", "**/*.lua", "**/*.js", "**/*.md"]
+version: 1.0.0
+---
+
+# Workflow Standards & Best Practices
+
+## Context
+SoloStage AI follows specific workflow standards and coding conventions to ensure consistency, maintainability, and reliability across all components.
+
+## Development Workflow
+
+### 1. Pre-Development Checklist
+- [ ] Read Memento Briefing rules
+- [ ] Check system status with `/system_status`
+- [ ] Understand current project state
+- [ ] **ALWAYS CHECK FIRST** - Verify existing scripts/tools before creating new ones
+- [ ] Get explicit permission for any changes
+- [ ] Stay within exact scope of request
+
+### 2. Development Process
+1. **Plan**: Understand requirements and constraints
+2. **Check**: Verify current system state and existing tools
+3. **Ask**: Get permission for any file modifications
+4. **Implement**: Make changes within approved scope
+5. **Test**: Validate changes don't break existing functionality
+6. **Document**: Update relevant documentation
+
+### 3. Post-Development Validation
+- [ ] Run system health checks
+- [ ] Verify no functionality was removed
+- [ ] Test affected components
+- [ ] Update documentation if needed
+- [ ] Commit changes with descriptive messages
+
+## Script Creation Guidelines
+
+### CRITICAL: Always Check First
+**BEFORE creating any new script, you MUST:**
+
+1. **Search existing scripts**: Use `find . -name "*.sh" -o -name "*.py"` to check for existing functionality
+2. **Check project structure**: Review `scripts/` directory for similar tools
+3. **Ask permission**: Get explicit approval before creating multiple scripts
+4. **Consolidate when possible**: Combine functionality into existing scripts rather than creating duplicates
+
+### Script Creation Rules
+- **Maximum 1 script per functionality**: Do not create multiple scripts that do similar things
+- **Consolidate existing scripts**: If multiple scripts exist for similar purposes, consolidate them
+- **Ask before creating**: Always ask "Should I create a new script or modify an existing one?"
+- **Document purpose**: Clearly explain why a new script is needed vs. using existing tools
+
+### Examples of Script Consolidation
+- **Camera monitoring**: Use existing `fix_cameras.sh` + create single monitoring script
+- **System checks**: Consolidate into `scripts/test_environment.sh`
+- **Troubleshooting**: Use existing troubleshooting procedures in `004-troubleshooting-procedures.mdc`
+
+### Violation Prevention
+- **Check first**: Always search for existing functionality before creating new scripts
+- **Ask permission**: Get explicit approval for any new script creation
+- **Consolidate**: Prefer modifying existing scripts over creating new ones
+- **Document**: Explain why existing scripts cannot be used/modified
+
+### Communication Standards
+- **No pandering language**: Never use words like "perfect", "awesome", "excellent", "fantastic", "amazing", "incredible"
+- **Be direct and factual**: State what was accomplished without unnecessary praise
+- **Professional tone**: Use technical, matter-of-fact language
+- **Focus on results**: Report status and outcomes without emotional language
+
+## Coding Standards
+
+### Python Code Standards
+```python
+# File header with description
+"""
+SoloStage AI - [Component Name]
+[Brief description of functionality]
+"""
+
+# Import organization
+import os
+import sys
+from typing import Dict, List, Optional
+
+# Local imports
+from .config import settings
+from .utils import helpers
+
+# Constants
+DEFAULT_TIMEOUT = 30
+MAX_RETRIES = 3
+
+# Class and function naming
+class SoloStageAI:
+    """Main SoloStage AI controller class."""
+    
+    def __init__(self, config: Dict[str, str]) -> None:
+        """Initialize SoloStage AI with configuration."""
+        self.config = config
+        self.is_running = False
+    
+    def start_yamnet_classification(self) -> bool:
+        """Start YAMNet audio classification."""
+        # Implementation here
+        pass
+
+# Error handling
+try:
+    result = risky_operation()
+except SpecificException as e:
+    logger.error(f"Specific error occurred: {e}")
+    return False
+except Exception as e:
+    logger.error(f"Unexpected error: {e}")
+    return False
+```
+
+### Bash Script Standards
+```bash
+#!/bin/bash
+# SoloStage AI - [Script Name]
+# [Brief description of functionality]
+
+set -euo pipefail  # Exit on error, undefined vars, pipe failures
+
+# Configuration
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+readonly LOG_FILE="${PROJECT_ROOT}/logs/script.log"
+
+# Logging function
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
+}
+
+# Error handling
+error_exit() {
+    log "ERROR: $1"
+    exit 1
+}
+
+# Main function
+main() {
+    log "Starting [script name]"
+    
+    # Implementation here
+    
+    log "Completed successfully"
+}
+
+# Script execution
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi
+```
+
+### Lua Script Standards
+```lua
+-- SoloStage AI - [Script Name]
+-- [Brief description of functionality]
+
+local obs = obslua
+
+-- Configuration
+local SCRIPT_NAME = "SoloStage Controls"
+local SCRIPT_VERSION = "1.0.0"
+
+-- Global variables
+local yamnet_enabled = true
+local service_running = false
+
+-- Utility functions
+local function log(message)
+    print(string.format("[%s] %s", SCRIPT_NAME, message))
+end
+
+local function update_status_display()
+    -- Implementation here
+end
+
+-- Main functions
+function script_description()
+    return string.format("%s v%s - YAMNet AI Controls", SCRIPT_NAME, SCRIPT_VERSION)
+end
+
+function script_load(settings)
+    log("Script loaded")
+    update_status_display()
+end
+
+function script_unload()
+    log("Script unloaded")
+end
+```
+
+## File Organization Standards
+
+### Directory Structure
+```
+solostage-ai/
+├── .cursor/rules/           # Cursor AI rules (.mdc files)
+├── scripts/                 # System management scripts
+├── obs_scripts/            # OBS Lua integration scripts
+├── config/                 # Configuration files
+├── logs/                   # Log files
+├── recordings/             # Audio/video recordings
+├── models/                 # AI model files
+├── tests/                  # Test files
+└── docs/                   # Documentation
+```
+
+### Naming Conventions
+- **Files**: `snake_case` for Python, `kebab-case` for scripts
+- **Directories**: `snake_case` or `kebab-case`
+- **Variables**: `snake_case` in Python, `UPPER_CASE` for constants
+- **Functions**: `snake_case` in Python, `camelCase` in JavaScript
+- **Classes**: `PascalCase` in Python
+
+### Configuration Files
+- **Environment**: `.env` for environment variables
+- **OBS**: `obs_config.json` for OBS settings
+- **YAMNet**: `yamnet_config.yaml` for AI settings
+- **Camera**: `camera_devices.conf` for device mappings
+
+## Testing Standards
+
+### 1. Unit Testing
+```python
+import unittest
+from unittest.mock import Mock, patch
+from solostage_ai import SoloStageAI
+
+class TestSoloStageAI(unittest.TestCase):
+    """Test cases for SoloStage AI."""
+    
+    def setUp(self):
+        """Set up test fixtures."""
+        self.config = {
+            'OBS_WS_HOST': '127.0.0.1',
+            'OBS_WS_PORT': '4455',
+            'OBS_WS_PASSWORD': 'password'
+        }
+        self.ai = SoloStageAI(self.config)
+    
+    def test_yamnet_initialization(self):
+        """Test YAMNet AI initialization."""
+        self.assertIsNotNone(self.ai.yamnet_model)
+        self.assertTrue(self.ai.yamnet_enabled)
+    
+    def test_audio_classification(self):
+        """Test audio classification functionality."""
+        # Test implementation
+        pass
+
+if __name__ == '__main__':
+    unittest.main()
+```
+
+### 2. Integration Testing
+```bash
+#!/bin/bash
+# Integration test script
+
+set -euo pipefail
+
+echo "=== SoloStage AI Integration Tests ==="
+
+# Test 1: System deployment
+echo "Test 1: System deployment"
+./scripts/deploy_solostage.sh x86 --test-mode
+
+# Test 2: OBS integration
+echo "Test 2: OBS integration"
+python3 -c "
+import obsws_python as obs
+client = obs.ReqClient(host='127.0.0.1', port=4455, password='password')
+scenes = client.get_scene_list()
+assert len(scenes.scenes) > 0, 'No scenes found'
+print('OBS integration: OK')
+"
+
+# Test 3: YAMNet AI
+echo "Test 3: YAMNet AI"
+python3 test_yamnet_scores.py
+
+echo "=== All integration tests passed ==="
+```
+
+### 3. System Testing
+```bash
+#!/bin/bash
+# System test script
+
+echo "=== SoloStage AI System Tests ==="
+
+# Run comprehensive environment test
+./scripts/test_environment.sh --verbose
+
+# Run interactive system test
+python3 test_solostage.py
+
+# Run performance tests
+./scripts/performance_test.sh
+
+echo "=== System tests completed ==="
+```
+
+## Documentation Standards
+
+### 1. Code Documentation
+```python
+def classify_audio(self, audio_data: np.ndarray) -> Dict[str, float]:
+    """
+    Classify audio data using YAMNet AI model.
+    
+    Args:
+        audio_data: Audio data as numpy array
+        
+    Returns:
+        Dictionary with classification scores for each class
+        
+    Raises:
+        ValueError: If audio data is invalid
+        RuntimeError: If YAMNet model is not loaded
+        
+    Example:
+        >>> ai = SoloStageAI(config)
+        >>> scores = ai.classify_audio(audio_data)
+        >>> print(scores['speech'])
+        0.85
+    """
+    if not self.yamnet_model:
+        raise RuntimeError("YAMNet model not loaded")
+    
+    if audio_data.size == 0:
+        raise ValueError("Audio data is empty")
+    
+    # Implementation here
+    return classification_scores
+```
+
+### 2. README Documentation
+```markdown
+# Component Name
+
+Brief description of the component and its purpose.
+
+## Features
+- Feature 1
+- Feature 2
+- Feature 3
+
+## Installation
+```bash
+# Installation commands
+```
+
+## Usage
+```python
+# Usage examples
+```
+
+## Configuration
+| Setting | Description | Default |
+|---------|-------------|---------|
+| `SETTING_1` | Description | `default_value` |
+
+## Troubleshooting
+Common issues and solutions.
+
+## API Reference
+Detailed API documentation.
+```
+
+## Git Workflow Standards
+
+### 1. Commit Message Format
+```
+type(scope): brief description
+
+Detailed description of changes made.
+
+- Bullet point for specific changes
+- Another bullet point for other changes
+
+Fixes #issue_number
+```
+
+### 2. Branch Naming
+- `feature/feature-name` - New features
+- `bugfix/bug-description` - Bug fixes
+- `hotfix/critical-fix` - Critical fixes
+- `refactor/component-name` - Code refactoring
+
+### 3. Pull Request Process
+1. Create feature branch from main
+2. Make changes following coding standards
+3. Add tests for new functionality
+4. Update documentation
+5. Run all tests and checks
+6. Create pull request with detailed description
+7. Request code review
+8. Merge after approval
+
+## Performance Standards
+
+### 1. Response Time Requirements
+- **OBS Scene Switching**: < 100ms
+- **YAMNet Classification**: < 200ms
+- **Audio Processing**: < 50ms latency
+- **System Startup**: < 30 seconds
+
+### 2. Resource Usage Limits
+- **CPU Usage**: < 30% during normal operation
+- **Memory Usage**: < 2GB total system memory
+- **Disk Usage**: < 1GB for logs and recordings
+- **Network Usage**: < 1Mbps for streaming
+
+### 3. Reliability Requirements
+- **Uptime**: > 99% availability
+- **Error Rate**: < 1% false classifications
+- **Recovery Time**: < 5 minutes after failure
+- **Data Loss**: Zero data loss tolerance
+
+## Security Standards
+
+### 1. Access Control
+- **VNC Access**: Password-protected
+- **WebSocket API**: Password-protected
+- **File Permissions**: Restrictive permissions
+- **Service Isolation**: User-level services
+
+### 2. Data Protection
+- **Local Processing**: No external data transmission
+- **Configuration Security**: Sensitive data in environment variables
+- **Log Security**: No sensitive data in logs
+- **Backup Security**: Encrypted backups
+
+### 3. Network Security
+- **Local Network Only**: No external network access
+- **Port Restrictions**: Only necessary ports open
+- **Firewall Rules**: Restrictive firewall configuration
+- **SSL/TLS**: Use encryption where applicable

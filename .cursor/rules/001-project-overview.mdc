@@ -1,0 +1,60 @@
+---
+description: Comprehensive overview of SoloStage AI project architecture, components, and workflow
+globs: []
+version: 1.0.0
+---
+
+# SoloStage AI - Project Overview
+
+## Context
+**SoloStage AI** is an intelligent OBS scene switching system for singing with anti-guitar filtering using YAMNet AI-based audio classification.
+
+## Architecture
+- **Main Script**: `./scripts/deploy_solostage.sh` - deploys everything automatically
+- **Camera System**: ELP USB cameras with dynamic detection (1-n cameras supported)
+- **Primary System**: YAMNet AI-based audio classification (production-ready)
+- **OBS Integration**: WebSocket API on port 4455, password "password"
+- **Audio System**: PulseAudio loopback with OBS-YAMNet-Sink for audio sharing
+- **VNC Access**: x11vnc server on port 5901 for remote desktop management
+
+## Key Components
+
+### Core Scripts
+- `solostage_ai.py` - Main AI switcher with YAMNet TensorFlow Lite
+- `scripts/deploy_solostage.sh` - Main deployment script (DO NOT REMOVE FUNCTIONALITY)
+- `scripts/setup_obs_cameras.py` - OBS camera/audio source configuration
+- `fix_cameras.sh` - Comprehensive camera troubleshooting
+- `scripts/setup_vnc_desktop.sh` - VNC desktop setup
+
+### Configuration Files
+- `.env` - Environment variables for YAMNet AI system
+- `config/camera_devices.conf` - Dynamically generated camera device mappings
+- `obs_scripts/solostage_controls.lua` - OBS GUI controls for YAMNet
+
+### Camera System
+- **ELP Cameras**: USB cameras symlinked to `/dev/elp_1`, `/dev/elp_2`, `/dev/elp_3`
+- **Resolution**: Standardized to 1920x1080 @ 30fps MJPG format
+- **Friendly Names**: ELP_Camera_1, ELP_Camera_2, ELP_Camera_3 in OBS sources
+- **Audio Sources**: ELP_Audio_0, ELP_Audio_1, ELP_Audio_2 in OBS
+
+### OBS Scenes
+- **IDLE** - Default scene with ELP_Camera_1
+- **TALKING** - Speech detection scene with ELP_Camera_2
+- **SINGING** - Singing detection scene with ELP_Camera_3
+- **SINGING_W_MUSIC** - Singing with music scene
+- **SOUNDCHECK** - All cameras and audio sources for setup
+
+## Current Status
+**FULLY OPERATIONAL** - OBS safe mode issue resolved, Lua script YAMNet controls fixed, YAMNet AI running perfectly with correct IDLE state, all 5 scenes working, 3 cameras + 2 audio sources detected, WebSocket connected, system stable.
+
+## YAMNet AI System
+- **Thresholds**: speech: 0.0080, music: 0.0195, singing: 0.0097
+- **Audio Classification**: Real-time intelligent audio classification
+- **Anti-guitar Filtering**: Distinguishes between speech, singing, and music
+- **Production Ready**: Comprehensive testing and calibration completed
+
+## Deployment
+- **Local Mode**: Default deployment mode (no SSH overhead)
+- **Remote Mode**: Available with `--remote` flag
+- **Platforms**: x86 (desktop), pi (Raspberry Pi), arm (ARM devices)
+- **Auto-start**: Systemd service with desktop autostart for OBS

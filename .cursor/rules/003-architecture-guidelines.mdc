@@ -1,0 +1,114 @@
+---
+description: Architecture guidelines and patterns for SoloStage AI system components
+globs: ["**/*.py", "**/*.sh", "**/*.lua", "**/*.js"]
+version: 1.0.0
+---
+
+# Architecture Guidelines
+
+## Context
+SoloStage AI follows a clean separation of concerns with specific architectural patterns for reliability and maintainability.
+
+## System Architecture
+
+### Core Components
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   OBS Studio    │    │  SoloStage AI   │    │   YAMNet AI     │
+│   (Desktop)     │◄──►│   (Service)     │◄──►│  (TensorFlow)   │
+│   WebSocket     │    │   solostage_ai  │    │   Audio Class   │
+│   Port 4455     │    │      .py        │    │   Classification│
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   ELP Cameras   │    │  Systemd Service│    │ PulseAudio Loop │
+│   /dev/elp_*    │    │  Auto-start     │    │ OBS-YAMNet-Sink │
+│   1920x1080@30fps│    │  Environment    │    │  Audio Sharing  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+### Service Separation
+- **OBS Studio**: Runs as desktop application with autostart
+- **SoloStage AI Service**: Runs as systemd user service
+- **YAMNet AI**: Integrated into SoloStage AI service
+- **VNC Server**: Separate process for remote desktop access
+
+## Design Patterns
+
+### 1. Configuration Management
+- **Environment Variables**: All configuration in `.env` file
+- **Dynamic Detection**: Camera and audio device auto-detection
+- **Template System**: Platform-specific configuration templates
+
+### 2. Error Handling
+- **Graceful Degradation**: System continues operating with reduced functionality
+- **Comprehensive Logging**: All components log to structured formats
+- **Health Checks**: Regular system validation and self-healing
+
+### 3. Audio Architecture
+- **PulseAudio Loopback**: Virtual sink for audio sharing
+- **Device Separation**: Dedicated devices for different applications
+- **Conflict Prevention**: No shared audio device access
+
+### 4. Camera Management
+- **Dynamic Detection**: 1-n camera support with auto-discovery
+- **Standardized Settings**: All cameras use 1920x1080@30fps
+- **Friendly Naming**: Consistent naming across all components
+
+## Code Organization
+
+### Python Scripts
+- **Main AI System**: `solostage_ai.py` - Core YAMNet integration
+- **OBS Integration**: `scripts/setup_obs_cameras.py` - WebSocket API
+- **Testing**: `test_solostage.py` - Comprehensive system testing
+
+### Bash Scripts
+- **Deployment**: `scripts/deploy_solostage.sh` - Complete system setup
+- **Troubleshooting**: `fix_cameras.sh` - Camera issue resolution
+- **Utilities**: `scripts/utility_manager.sh` - System maintenance
+
+### Lua Scripts
+- **OBS Controls**: `obs_scripts/solostage_controls.lua` - GUI integration
+- **Audio Hooks**: `obs_scripts/audio_interface_hooks.lua` - Recording hooks
+
+## Integration Patterns
+
+### WebSocket Communication
+- **OBS WebSocket**: Port 4455, password "password"
+- **Scene Management**: Automated scene switching via API
+- **Source Control**: Dynamic source creation and management
+
+### Systemd Integration
+- **User Service**: `solostage-ai.service` for SoloStage AI
+- **Environment Loading**: Automatic `.env` file loading
+- **Auto-restart**: Service recovery on failure
+
+### VNC Integration
+- **x11vnc Server**: Port 5901 for remote desktop
+- **Desktop Environment**: LXPanel with network management
+- **OBS Access**: Full OBS GUI access via VNC
+
+## Performance Considerations
+
+### Resource Management
+- **CPU Optimization**: YAMNet TensorFlow Lite for efficiency
+- **Memory Management**: Proper cleanup and resource release
+- **Audio Latency**: Low-latency audio processing pipeline
+
+### Scalability
+- **Camera Scaling**: Support for 1-n cameras dynamically
+- **Platform Support**: x86, ARM, Raspberry Pi compatibility
+- **Configuration Scaling**: Template-based platform configuration
+
+## Security Considerations
+
+### Access Control
+- **VNC Authentication**: Password-protected remote access
+- **WebSocket Security**: Password-protected OBS API
+- **Service Isolation**: User-level systemd services
+
+### Data Protection
+- **Local Processing**: All AI processing happens locally
+- **No External Dependencies**: Self-contained system operation
+- **Configuration Security**: Sensitive data in environment variables

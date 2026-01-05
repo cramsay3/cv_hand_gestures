@@ -1,0 +1,318 @@
+---
+description: Comprehensive troubleshooting procedures for SoloStage AI system issues
+globs: []
+version: 1.0.0
+---
+
+# Troubleshooting Procedures
+
+## Context
+SoloStage AI includes comprehensive troubleshooting tools and procedures for resolving common system issues.
+
+## Camera Troubleshooting
+
+### Camera Freezing Issues
+**Symptoms**: Cameras freeze, show black screen, or disconnect frequently
+
+**Solution Steps**:
+1. **Run Comprehensive Fix**:
+   ```bash
+   ./fix_cameras.sh
+   ```
+   - Sets all cameras to stable 30fps
+   - Optimizes USB power management
+   - Enhances UVC driver settings
+   - Reloads drivers and udev rules
+
+2. **Verify Camera Settings**:
+   ```bash
+   v4l2-ctl --device=/dev/video0 --get-parm
+   v4l2-ctl --device=/dev/video2 --get-parm
+   v4l2-ctl --device=/dev/video6 --get-parm
+   ```
+
+3. **Check USB Power**:
+   ```bash
+   lsusb -v | grep -A 5 -B 5 "ELP"
+   ```
+
+### HDMI Camera Specific Issues
+**Symptoms**: HDMI camera freezes or shows poor quality
+
+**Solution**:
+```bash
+./fix_hdmi_camera.sh
+```
+- Optimizes HDMI camera for USB 2.0 stability
+- Sets stable 30fps with optimized exposure
+- Enhances USB power management
+
+### USB Bandwidth Issues
+**Symptoms**: Multiple cameras causing bandwidth conflicts
+
+**Solution**:
+```bash
+./fix_usb_bandwidth.sh
+```
+- Reduces HDMI camera to 1280x720@30fps
+- Sets H.264 cameras to 1920x1080@30fps
+- Optimizes USB core buffer settings
+
+## Audio System Troubleshooting
+
+### Audio Device Conflicts
+**Symptoms**: "Invalid number of channels" or audio device not found
+
+**Solution Steps**:
+1. **Check Audio Devices**:
+   ```bash
+   python3 -c "import sounddevice as sd; print(sd.query_devices())"
+   ```
+
+2. **Verify PulseAudio**:
+   ```bash
+   pactl list sinks
+   pactl list sources
+   ```
+
+3. **Check OBS-YAMNet-Sink**:
+   ```bash
+   pactl list sinks | grep -A 10 "obs_yamnet_sink"
+   ```
+
+### YAMNet Audio Issues
+**Symptoms**: YAMNet not detecting audio or false classifications
+
+**Solution Steps**:
+1. **Check Audio Input**:
+   ```bash
+   # Verify YAMNet is receiving audio
+   tail -f solostage_ai.log | grep -i "audio"
+   ```
+
+2. **Verify Thresholds**:
+   ```bash
+   grep -E "YAMNET_.*_THRESHOLD" .env
+   ```
+
+3. **Test Audio Classification**:
+   ```bash
+   python3 test_yamnet_scores.py
+   ```
+
+## OBS Integration Troubleshooting
+
+### WebSocket Connection Issues
+**Symptoms**: "Connection refused" or "WebSocket connection failed"
+
+**Solution Steps**:
+1. **Check OBS Status**:
+   ```bash
+   systemctl --user status solostage-ai.service
+   ss -tlnp | grep 4455
+   ```
+
+2. **Verify WebSocket Settings**:
+   - OBS Settings → Advanced → WebSocket Server
+   - Port: 4455, Password: "password"
+
+3. **Restart OBS Properly**:
+   ```bash
+   # NEVER use pkill obs - causes safe mode
+   obs --shutdown
+   sleep 2
+   export DISPLAY=:0 && obs --profile SoloStage --scene-collection SoloStage --disable-shutdown-check &
+   ```
+
+### OBS Safe Mode Issues
+**Symptoms**: OBS shows "Safe Mode" in title bar, WebSocket connections refused
+
+**Solution**:
+```bash
+rm -f ~/.config/obs-studio/safe_mode
+systemctl --user restart solostage-ai.service
+```
+
+### Scene Switching Issues
+**Symptoms**: Scenes not switching or wrong scenes activated
+
+**Solution Steps**:
+1. **Check YAMNet Status**:
+   ```bash
+   ./toggle_yamnet.sh status
+   ```
+
+2. **Verify Scene Names**:
+   ```bash
+   grep -E "SCENE.*=" .env
+   ```
+
+3. **Test Scene Switching**:
+   ```bash
+   python3 -c "
+   import obsws_python as obs
+   client = obs.ReqClient(host='127.0.0.1', port=4455, password='password')
+   print(client.get_scene_list())
+   "
+   ```
+
+## System Service Troubleshooting
+
+### Multiple Service Instances
+**Symptoms**: Toggle buttons fail, system instability
+
+**Solution**:
+```bash
+# Check for multiple instances
+pgrep -f "solostage_ai.py"
+
+# Kill all instances
+pkill -f "solostage_ai.py"
+
+# Remove old OBS scripts that might start duplicate services
+rm -f /home/ubuntu/.config/obs-studio/scripts/old_script.lua
+
+# Restart service
+systemctl --user restart solostage-ai.service
+```
+
+### Service Startup Issues
+**Symptoms**: Service fails to start or crashes immediately
+
+**Solution Steps**:
+1. **Check Service Logs**:
+   ```bash
+   journalctl --user -u solostage-ai.service -f
+   ```
+
+2. **Verify Environment**:
+   ```bash
+   systemctl --user show solostage-ai.service | grep Environment
+   ```
+
+3. **Check Dependencies**:
+   ```bash
+   systemctl --user list-dependencies solostage-ai.service
+   ```
+
+## VNC Desktop Troubleshooting
+
+### VNC Connection Issues
+**Symptoms**: Cannot connect to VNC or blank screen
+
+**Solution Steps**:
+1. **Check VNC Server**:
+   ```bash
+   ps aux | grep x11vnc
+   netstat -tlnp | grep 5901
+   ```
+
+2. **Restart VNC**:
+   ```bash
+   ./scripts/setup_vnc_desktop.sh
+   ```
+
+3. **Check Desktop Environment**:
+   ```bash
+   ps aux | grep -E "(lxpanel|openbox)"
+   ```
+
+### Desktop Environment Issues
+**Symptoms**: No desktop, missing menu bar, or network manager
+
+**Solution**:
+```bash
+# Install missing components
+sudo apt update
+sudo apt install lxpanel network-manager-gnome pcmanfm
+
+# Restart desktop
+pkill -f lxpanel
+lxpanel &
+```
+
+## Performance Troubleshooting
+
+### High CPU Usage
+**Symptoms**: System slow, high CPU usage
+
+**Solution Steps**:
+1. **Check YAMNet Performance**:
+   ```bash
+   top -p $(pgrep -f "solostage_ai.py")
+   ```
+
+2. **Optimize Camera Settings**:
+   ```bash
+   ./fix_cameras.sh
+   ```
+
+3. **Check Audio Latency**:
+   ```bash
+   grep -E "CAPTURE_SAMPLE_RATE|AUDIO_DEVICE" .env
+   ```
+
+### Memory Issues
+**Symptoms**: High memory usage, system slowdown
+
+**Solution**:
+```bash
+# Check memory usage
+free -h
+ps aux --sort=-%mem | head -10
+
+# Restart services if needed
+systemctl --user restart solostage-ai.service
+```
+
+## Emergency Recovery
+
+### Complete System Reset
+**Symptoms**: System completely broken, multiple failures
+
+**Solution Steps**:
+1. **Stop All Services**:
+   ```bash
+   systemctl --user stop solostage-ai.service
+   pkill -f obs
+   pkill -f x11vnc
+   ```
+
+2. **Clean Configuration**:
+   ```bash
+   rm -f ~/.config/obs-studio/safe_mode
+   rm -f ~/.config/obs-studio/basic/profiles/SoloStage/basic.ini
+   ```
+
+3. **Redeploy System**:
+   ```bash
+   ./scripts/deploy_solostage.sh x86
+   ```
+
+4. **Verify System**:
+   ```bash
+   ./scripts/test_environment.sh
+   ```
+
+## Log Analysis
+
+### Key Log Files
+- **SoloStage AI**: `solostage_ai.log`
+- **Systemd Service**: `journalctl --user -u solostage-ai.service`
+- **OBS Logs**: `~/.config/obs-studio/logs/`
+- **VNC Logs**: `/tmp/x11vnc.log`
+
+### Log Analysis Commands
+```bash
+# Monitor SoloStage AI logs
+tail -f solostage_ai.log
+
+# Check for errors
+grep -i error solostage_ai.log
+
+# Monitor systemd service
+journalctl --user -u solostage-ai.service -f
+
+# Check OBS WebSocket connections
+grep -i "websocket" ~/.config/obs-studio/logs/*.log
+```
